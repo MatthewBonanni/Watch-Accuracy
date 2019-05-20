@@ -1,3 +1,6 @@
+# Ignore my watch files
+*.wat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
