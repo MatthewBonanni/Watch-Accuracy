@@ -1,4 +1,7 @@
+import ntplib
 import datetime as dt
+import time
+import tabulate
 import tkinter as tk
 from tkinter import filedialog
 import json
@@ -17,7 +20,13 @@ def save_file(watch, filePath):
 def input_yesno(prompt, default):
     yes = set(['yes', 'y'])
     no = set(['no', 'n'])
-    choice = input(prompt)
+    
+    if default:
+        ynStr = "(Y/n)"
+    else:
+        ynStr = "(y/N)"
+
+    choice = input(prompt + " {0}\n".format(ynStr))
     if choice in yes:
         return True
     elif choice in no:
@@ -32,10 +41,10 @@ def input_int(prompt, options, cancel = False):
         print(prompt)
         i = 1
         for item in options:
-            print("({}) {}".format(str(i), item))
+            print("({0!s}) {1}".format(str(i), item))
             i += 1
         if cancel:
-            print("({}) CANCEL".format(numOptions + 1))
+            print("({0}) CANCEL".format(numOptions + 1))
         
         try:
             choice = int(input(""))
@@ -55,6 +64,32 @@ def input_int(prompt, options, cancel = False):
                 print("\nError: Invalid selection\n")
             else:
                 return choice
+
+def measure_offset():
+    input("Press Enter when the seconds hand reaches the 12 o'clock position...")
+    while True:
+        try:
+            ntp = ntplib.NTPClient()
+            ntpserver = "europe.pool.ntp.org"
+            t0 = time.perf_counter()
+            rawTime = dt.datetime.utcfromtimestamp(ntp.request(ntpserver).tx_time)
+            pingTime = time.perf_counter() - t0
+            pingDifference = dt.timedelta(seconds = (pingTime / 2))
+            realTime = rawTime + pingDifference
+            print("Official UTC time per {0}: {1}".format(ntpserver, realTime))
+            break
+        except:
+            input("Failed to connect to NTP server. Press Enter to try again.")
+          
+    nearest_min = dt.timedelta(minutes = round(realTime.second/60))
+    measuredTime = realTime.replace(second = 0, microsecond = 0) + nearest_min
+    timeCorrect = input_yesno("Your watch should read {0}. Is this correct?".format(measuredTime), True)
+    
+    measurement = {}
+    measurement['utc'] = [realTime.isoformat()]
+    measurement['measured'] = [measuredTime.isoformat()]
+
+    return measurement
 
 print("Welcome to the Watch Accuracy Tester!\n")
 fileOpt = input_int("Select File Option", ["Open watch file", "Start new watch file"])
@@ -79,7 +114,10 @@ elif fileOpt == 2:
     watch = {}
     print("")
     for key in dataKeys:
-        watch[key] = input("{}: ".format(key))
+        if key != 'data':
+            watch[key] = input("{0}: ".format(key))
+    
+    watch['data'] = ""
 
     print("\nOpening File Dialog...")
     filePath = filedialog.asksaveasfilename(confirmoverwrite = True, \
@@ -94,37 +132,60 @@ elif fileOpt == 2:
 while True:
     print("")
     actionOpt = input_int("Select Option", ["New measurement", \
-                                            "Change watch information", \
-                                            "View raw data", \
+                                            "View/Change watch information", \
+                                            "View past measurement data", \
                                             "Save watch file", \
-                                            "Exit"])
+                                            "Save and exit", \
+                                            "Exit without saving"])
 
     if actionOpt == 1:
         print("")
-        reset = input_yesno("Have you adjusted your watch time since the last measurement? (y/N)", False)
+        if fileOpt == 1 and watch['data'] != "":
+            newSeries = input_yesno("Have you adjusted your watch time since the last measurement?", False)
+        else:
+            newSeries = True
+        
+        dataPt = measure_offset()
+
+        if newSeries:
+            if watch['data'] == "":
+                watch['data'] = [dataPt]
+            else:
+                watch['data'].append(dataPt)
+        else:
+            watch['data'][-1]['utc'].append(dataPt['utc'][0])
+            watch['data'][-1]['measured'].append(dataPt['measured'][0])
 
     elif actionOpt == 2:
         print("")
 
         currentInfo = []
         for key in dataKeys:
-            currentInfo.append("{}: {}".format(key, watch[key]))
+            if key != 'data':
+                currentInfo.append("{0}: {1}".format(key, watch[key]))
 
         infoOpt = input_int("Change which item?", currentInfo, cancel = True)
 
         if infoOpt == None:
             print("Cancelled.")
         else:
-            watch[dataKeys[infoOpt]] = input("Enter new value for {}: ".format(dataKeys[infoOpt]))
+            watch[dataKeys[infoOpt]] = input("Enter new value for {0}: ".format(dataKeys[infoOpt]))
     
     elif actionOpt == 3:
-        print("")
-        for key in dataKeys:
-            print("{}: {}".format(key, watch[key]))
+        for dataSeries in watch['data']:
+            print("")
+            print(tabulate.tabulate(dataSeries, headers = 'keys', tablefmt = 'simple'))
     
     elif actionOpt == 4:
         save_file(watch, filePath)
-        print("\nSaved to {}".format(filePath))
+        print("\nSaved to {0}".format(filePath))
     
     elif actionOpt == 5:
+        save_file(watch, filePath)
+        print("\nSaved to {0}".format(filePath))
         exit()
+    
+    elif actionOpt == 6:
+        confirmExitOpt = input_yesno("\nAre you sure you want to exit without saving?", False)
+        if confirmExitOpt:
+            exit()
