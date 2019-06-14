@@ -8,6 +8,7 @@ from tkinter import filedialog
 import os
 import json
 
+# Required fields in a watch file
 watchKeys = ["nickname", \
              "manufacturer", \
              "model_name", \
@@ -15,6 +16,7 @@ watchKeys = ["nickname", \
              "serial_number", \
              "data"]
 
+# Data items stored with each measurement
 dataKeys = ["utc", \
             "measured", \
             "offset", \
@@ -24,12 +26,24 @@ dataKeys = ["utc", \
             "t_human", \
             "rate"]
 
+# Data which is calculated, not directly measured
 dataKeys_notMeasured = ["offset_change", \
                         "t_elapsed_split", \
                         "t_elapsed_total", \
                         "t_human", \
                         "rate"]
 
+# Connects to the window server
+def start_tk():
+    while True:
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            break
+        except:
+            input("Window server not available. Press Enter to try again...")
+
+# Determines the directory where the script is located
 def get_appDir():
     try:
         appDir = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +52,7 @@ def get_appDir():
     
     return appDir
 
+# Loads the application data if the corresponding file exists. Creates it if not.
 def load_appData(appDir):
     try:
         appData = json.loads(open(appDir + '/appData.dat').read())
@@ -48,16 +63,19 @@ def load_appData(appDir):
 
     return appData
 
+# Writes to the given application data file and exits the script
 def quit_app(appDir):
     with open(appDir + '/appData.dat', 'w') as dataFile:
         json.dump(appData, dataFile)
     exit()
 
+# Writes the given watch data to the given file
 def save_file(watch, filePath):
     appData['prevDir'], appData['prevFile'] = os.path.split(filePath)
     with open(filePath, 'w') as outFile:
         json.dump(watch, outFile)
 
+# Constructs yes or no dialog menu
 def input_yesno(prompt, default):
     yes = set(['yes', 'y'])
     no = set(['no', 'n'])
@@ -75,6 +93,7 @@ def input_yesno(prompt, default):
     else:
         return default
 
+# Constructs numerical choice dialog menu
 def input_int(prompt, options, cancel = False):
     numOptions = len(options)
 
@@ -106,8 +125,11 @@ def input_int(prompt, options, cancel = False):
             else:
                 return choice
 
+# Gets the current UTC time and computes the offset of the measured time
 def measure_offset():
     input("Press Enter when the seconds hand reaches the 12 o'clock position...")
+
+    # Get UTC time
     while True:
         try:
             ntp = ntplib.NTPClient()
@@ -121,10 +143,12 @@ def measure_offset():
             break
         except:
             input("Failed to connect to NTP server.\nPress Enter to try again when the seconds hand reaches 12...")
-          
+    
+    # Estimate the measured time by rounding to the closest minute
     nearest_min = dt.timedelta(minutes = round(realTime.second/60))
     measuredTime = realTime.replace(second = 0, microsecond = 0) + nearest_min
 
+    # Allow the user to adjust the time in minute increments as necessary
     while True:
         timeCorrect = input_yesno("Your watch should read UTC {0}. Is this correct?".format(measuredTime), default=True)
 
@@ -138,8 +162,8 @@ def measure_offset():
                 print("\nError: Invalid input\n")
         else:
             break
-
-
+    
+    # Write data to memory
     offset = (measuredTime - realTime).total_seconds()
     
     measurement = {}
@@ -153,6 +177,7 @@ def measure_offset():
 
 ###################################################################################################
 
+# Startup sequence
 appDir = get_appDir()
 appData = load_appData(appDir)
 
@@ -166,31 +191,33 @@ print("\
 print("Created by Matthew R. Bonanni\n")
 print("Welcome to the Watch Accuracy Tester!")
 
+# File open/create menu
 while True:
     fileOpt = input_int("Select File Option:", ["Open watch file", "Start new watch file", "Quit"])
 
-    while True:
-        try:
-            root = tk.Tk()
-            root.withdraw()
-            break
-        except:
-            input("Window server not available. Press Enter to try again...")
-
+    # Open existing watch file
     if fileOpt == 1:
+
+        # Select file via GUI
         print("\nOpening File Dialog...")
+        start_tk()
         filePath = filedialog.askopenfilename(initialdir = appData['prevDir'], \
                                               initialfile = appData['prevFile'], \
                                               title = "Open file", \
                                               filetypes = (("watch files","*.wat"),("all files","*.*")))
+        
+        # Open file if possible
         try:
             watch = json.loads(open(filePath).read())
             print("Opened " + watch['nickname'] + " data file.")
             break
         except:
             print("\nFile could not be read.\n")
-
+    
+    # Create new watch file
     elif fileOpt == 2:
+
+        # Manually set all fields except data
         watch = {}
         print("")
         for key in watchKeys:
@@ -199,7 +226,9 @@ while True:
     
         watch['data'] = ""
 
+        # Select file via GUI
         print("\nOpening File Dialog...")
+        start_tk()
         filePath = filedialog.asksaveasfilename(confirmoverwrite = True, \
                                                 initialdir = appData['prevDir'], \
                                                 initialfile = watch['nickname'], \
@@ -207,16 +236,19 @@ while True:
                                                 defaultextension = ".wat", \
                                                 filetypes = (("watch files","*.wat"),("all files","*.*")))
         
+        # Save newly made file if possible
         try:
             save_file(watch, filePath)
             print("\nNew watch saved to: " + filePath)
             break
         except:
             print("\nNo file saved.\n")
-
+    
+    # Quit application
     elif fileOpt == 3:
         quit_app(appDir)
 
+# Watch management menu
 while True:
     print("")
     actionOpt = input_int("Select Option", ["New measurement", \
@@ -227,27 +259,40 @@ while True:
                                             "Save watch file", \
                                             "Save and exit", \
                                             "Exit without saving"])
-
+    
+    # Take new measurement
     if actionOpt == 1:
+
+        # Ask whether to add to current series or start new series
         print("")
         if watch['data'] != "":
             newSeries = input_yesno("Have you adjusted your watch time since the last measurement?", False)
         else:
             newSeries = True
         
+        # Take measurement
         dataPt = measure_offset()
 
+        # Create new series
         if newSeries:
+
+            # Create first series or append new series
             if watch['data'] == "":
                 watch['data'] = [dataPt]
             else:
                 watch['data'].append(dataPt)
+
+            # Initialize multi-measurement computable values
             watch['data'][-1]['offset_change'] = [0]
             watch['data'][-1]['t_elapsed_split'] = [0]
             watch['data'][-1]['t_elapsed_total'] = [0]
             watch['data'][-1]['t_human'] = [str(dt.timedelta(seconds = 0))]
             watch['data'][-1]['rate'] = [None]
+        
+        # Add measurement to current series
         else:
+
+            # Compute multi-measurement values
             dataPt_calc = {}
 
             dataPt_calc['offset_change'] = dataPt['offset'][0] - watch['data'][-1]['offset'][-1]
@@ -262,12 +307,14 @@ while True:
             
             dataPt_calc['rate'] = dataPt_calc['offset_change'] / (dataPt_calc['t_elapsed_split'] / 86400)
 
+            # Append measurement to last series
             for key in watch['data'][-1]:
                 if key not in dataKeys_notMeasured:
                     watch['data'][-1][key].append(dataPt[key][0])
                 else:
                     watch['data'][-1][key].append(dataPt_calc[key])
     
+    # View past measurement data
     elif actionOpt == 2:
         if watch['data'] == "":
             print("\nNo data saved.")
@@ -284,6 +331,7 @@ while True:
                 print("")
                 print(tabulate.tabulate(seriesTable, headers = 'firstrow', tablefmt = 'simple'))
     
+    # Delete the last measurement
     elif actionOpt == 3:
         if watch['data'] == "":
             print("\nNo data exists to delete.")
@@ -302,11 +350,15 @@ while True:
             print("Delete operation cancelled.")
             continue
     
+    # Analyze the watch performance based on data in memory
     elif actionOpt == 4:
+
+        # Verify at least 1 series
         if watch['data'] == "":
             print("\nA minimum of 1 series with 2 data points is required for analysis.")
             continue
         
+        # Verify at least 2 data points
         seriesWith2 = 0
         for series in watch['data']:
             if len(series['rate']) >= 2:
@@ -316,6 +368,7 @@ while True:
             print("\nA minimum of 1 series with 2 data points is required for analysis.")
             continue
         
+        # Compute total elapsed time across all series
         totalTime = 0
         elapsedTimeWarning = 0
 
@@ -324,7 +377,9 @@ while True:
                 if (series['t_elapsed_total'][-1] / 3600) < 12:
                     elapsedTimeWarning = 1
                 totalTime += series['t_elapsed_total'][-1]
-
+        
+        # Compute weighted average of offset rate
+        # Each measurement is weighted by its split duration
         meanRate = 0
 
         for series in watch['data']:
@@ -338,15 +393,18 @@ while True:
             print("\nWarning: For accurate performance analysis, series data should span at least 12 hours.")
         
         print("\nTime-weighted mean deviation rate is {0} seconds per day.".format(meanRate))
-
+    
+    # View or edit the watch metadata
     elif actionOpt == 5:
         print("")
 
+        # Print current metadata
         currentInfo = []
         for key in watchKeys:
             if key != 'data':
                 currentInfo.append("{0}: {1}".format(key, watch[key]))
-
+        
+        # Edit data menu
         infoOpt = input_int("Change which item?", currentInfo, cancel = True)
 
         if infoOpt == None:
@@ -355,15 +413,18 @@ while True:
         else:
             watch[watchKeys[infoOpt]] = input("Enter new value for {0}: ".format(watchKeys[infoOpt]))
     
+    # Save without quitting
     elif actionOpt == 6:
         save_file(watch, filePath)
         print("\nSaved to {0}".format(filePath))
     
+    # Save and quit
     elif actionOpt == 7:
         save_file(watch, filePath)
         print("\nSaved to {0}".format(filePath))
         quit_app(appDir)
     
+    # Quit without saving
     elif actionOpt == 8:
         confirmExitOpt = input_yesno("\nAre you sure you want to exit without saving?", False)
         if confirmExitOpt:
