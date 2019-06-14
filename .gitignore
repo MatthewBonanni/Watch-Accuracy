@@ -1,5 +1,6 @@
-# Ignore my watch files
+# Ignore watch files and application data files
 *.wat
+*.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

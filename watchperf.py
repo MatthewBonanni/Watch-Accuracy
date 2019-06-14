@@ -5,6 +5,7 @@ import dateutil.parser
 import tabulate
 import tkinter as tk
 from tkinter import filedialog
+import os
 import json
 
 watchKeys = ["nickname", \
@@ -29,7 +30,31 @@ dataKeys_notMeasured = ["offset_change", \
                         "t_human", \
                         "rate"]
 
+def get_appDir():
+    try:
+        appDir = os.path.dirname(os.path.abspath(__file__))
+    except:
+        appDir = os.getcwd()
+    
+    return appDir
+
+def load_appData(appDir):
+    try:
+        appData = json.loads(open(appDir + '/appData.dat').read())
+    except:
+        appData = {}
+        appData['prevDir'] = appDir
+        appData['prevFile'] = ""
+
+    return appData
+
+def quit_app(appDir):
+    with open(appDir + '/appData.dat', 'w') as dataFile:
+        json.dump(appData, dataFile)
+    exit()
+
 def save_file(watch, filePath):
+    appData['prevDir'], appData['prevFile'] = os.path.split(filePath)
     with open(filePath, 'w') as outFile:
         json.dump(watch, outFile)
 
@@ -126,6 +151,11 @@ def measure_offset():
 
     return measurement
 
+###################################################################################################
+
+appDir = get_appDir()
+appData = load_appData(appDir)
+
 print("\
  _       __      __       __    ____            ____\n\
 | |     / /___ _/ /______/ /_  / __ \___  _____/ __/\n\
@@ -135,50 +165,57 @@ print("\
 ")
 print("Created by Matthew R. Bonanni\n")
 print("Welcome to the Watch Accuracy Tester!")
-fileOpt = input_int("Select File Option:", ["Open watch file", "Start new watch file", "Quit"])
 
 while True:
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        break
-    except:
-        input("Window server not available. Press Enter to try again...")
+    fileOpt = input_int("Select File Option:", ["Open watch file", "Start new watch file", "Quit"])
 
-if fileOpt == 1:
-    print("\nOpening File Dialog...")
-    filePath = filedialog.askopenfilename(initialdir = "/mnt/c/Users/Matthew/OneDrive/Documents/Projects/Watch-Accuracy/", \
-                                          title = "Open file", \
-                                          filetypes = (("watch files","*.wat"),("all files","*.*")))
-    try:
-        watch = json.loads(open(filePath).read())
-    except:
-        print("\nError: File is formatted incorrectly or corrupted, and could not be read.\n")
-        exit()
+    while True:
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            break
+        except:
+            input("Window server not available. Press Enter to try again...")
+
+    if fileOpt == 1:
+        print("\nOpening File Dialog...")
+        filePath = filedialog.askopenfilename(initialdir = appData['prevDir'], \
+                                              initialfile = appData['prevFile'], \
+                                              title = "Open file", \
+                                              filetypes = (("watch files","*.wat"),("all files","*.*")))
+        try:
+            watch = json.loads(open(filePath).read())
+            print("Opened " + watch['nickname'] + " data file.")
+            break
+        except:
+            print("\nFile could not be read.\n")
+
+    elif fileOpt == 2:
+        watch = {}
+        print("")
+        for key in watchKeys:
+            if key != 'data':
+                watch[key] = input("{0}: ".format(key))
     
-    print("Opened " + watch['nickname'] + " data file.")
+        watch['data'] = ""
 
-elif fileOpt == 2:
-    watch = {}
-    print("")
-    for key in watchKeys:
-        if key != 'data':
-            watch[key] = input("{0}: ".format(key))
-    
-    watch['data'] = ""
+        print("\nOpening File Dialog...")
+        filePath = filedialog.asksaveasfilename(confirmoverwrite = True, \
+                                                initialdir = appData['prevDir'], \
+                                                initialfile = watch['nickname'], \
+                                                title = "Save file", \
+                                                defaultextension = ".wat", \
+                                                filetypes = (("watch files","*.wat"),("all files","*.*")))
+        
+        try:
+            save_file(watch, filePath)
+            print("\nNew watch saved to: " + filePath)
+            break
+        except:
+            print("\nNo file saved.\n")
 
-    print("\nOpening File Dialog...")
-    filePath = filedialog.asksaveasfilename(confirmoverwrite = True, \
-                                            initialdir = "./", \
-                                            initialfile = watch['nickname'], \
-                                            title = "Save file", \
-                                            defaultextension = ".wat", \
-                                            filetypes = (("watch files","*.wat"),("all files","*.*")))
-
-    save_file(watch, filePath)
-
-elif fileOpt == 3:
-    exit()
+    elif fileOpt == 3:
+        quit_app(appDir)
 
 while True:
     print("")
@@ -325,11 +362,11 @@ while True:
     elif actionOpt == 7:
         save_file(watch, filePath)
         print("\nSaved to {0}".format(filePath))
-        exit()
+        quit_app(appDir)
     
     elif actionOpt == 8:
         confirmExitOpt = input_yesno("\nAre you sure you want to exit without saving?", False)
         if confirmExitOpt:
-            exit()
+            quit_app(appDir)
         else:
             continue
