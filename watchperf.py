@@ -122,6 +122,8 @@ def measure_offset():
     measurement['measured'] = [measuredTime.isoformat()]
     measurement['offset'] = [offset]
 
+    print("\nMeasurement recorded. Please wait approximately 12 hours before taking another measurement.")
+
     return measurement
 
 print("\
@@ -135,12 +137,17 @@ print("Created by Matthew R. Bonanni\n")
 print("Welcome to the Watch Accuracy Tester!")
 fileOpt = input_int("Select File Option:", ["Open watch file", "Start new watch file", "Quit"])
 
-root = tk.Tk()
-root.withdraw()
+while True:
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        break
+    except:
+        input("Window server not available. Press Enter to try again...")
 
 if fileOpt == 1:
     print("\nOpening File Dialog...")
-    filePath = filedialog.askopenfilename(initialdir = "./", \
+    filePath = filedialog.askopenfilename(initialdir = "/mnt/c/Users/Matthew/OneDrive/Documents/Projects/Watch-Accuracy/", \
                                           title = "Open file", \
                                           filetypes = (("watch files","*.wat"),("all files","*.*")))
     try:
@@ -273,6 +280,7 @@ while True:
             continue
         
         totalTime = 0
+        elapsedTimeWarning = 0
 
         for series in watch['data']:
             if len(series['rate']) >= 2:
