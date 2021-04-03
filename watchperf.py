@@ -411,7 +411,7 @@ while True:
             print("Cancelled.")
             continue
         else:
-            watch[watchKeys[infoOpt]] = input("Enter new value for {0}: ".format(watchKeys[infoOpt]))
+            watch[watchKeys[infoOpt-1]] = input("Enter new value for {0}: ".format(watchKeys[infoOpt]))
     
     # Save without quitting
     elif actionOpt == 6:
