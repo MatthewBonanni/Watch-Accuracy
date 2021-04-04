@@ -8,6 +8,8 @@ from tkinter import filedialog
 import os
 import json
 
+import sys
+
 # Required fields in a watch file
 watchKeys = ["nickname", \
              "manufacturer", \
@@ -188,65 +190,74 @@ print("\
 | |/ |/ / /_/ / /_/ /__/ / / / ____/  __/ /  / __/  \n\
 |__/|__/\__,_/\__/\___/_/ /_/_/    \___/_/  /_/     \n\
 ")
-print("Created by Matthew R. Bonanni\n")
+print("Created by Matthew R. Bonanni, tweaks by Afonso Guerra\n")
 print("Welcome to the Watch Accuracy Tester!")
 
-# File open/create menu
-while True:
-    fileOpt = input_int("Select File Option:", ["Open watch file", "Start new watch file", "Quit"])
+if(len(sys.argv) > 1):
+    filePath = sys.argv[1]
+    #print("File was "+filePath+"\n")
+    try:
+        watch = json.loads(open(filePath).read())
+        print("Opened " + watch['nickname'] + " data file.")
+    except:
+        print("\nFile ["+filePath+"] could not be read.\n")
+else:
+    # File open/create menu
+    while True:
+        fileOpt = input_int("Select File Option:", ["Open watch file", "Start new watch file", "Quit"])
 
-    # Open existing watch file
-    if fileOpt == 1:
+        # Open existing watch file
+        if fileOpt == 1:
 
-        # Select file via GUI
-        print("\nOpening File Dialog...")
-        start_tk()
-        filePath = filedialog.askopenfilename(initialdir = appData['prevDir'], \
-                                              initialfile = appData['prevFile'], \
-                                              title = "Open file", \
-                                              filetypes = (("watch files","*.wat"),("all files","*.*")))
-        
-        # Open file if possible
-        try:
-            watch = json.loads(open(filePath).read())
-            print("Opened " + watch['nickname'] + " data file.")
-            break
-        except:
-            print("\nFile could not be read.\n")
-    
-    # Create new watch file
-    elif fileOpt == 2:
-
-        # Manually set all fields except data
-        watch = {}
-        print("")
-        for key in watchKeys:
-            if key != 'data':
-                watch[key] = input("{0}: ".format(key))
-    
-        watch['data'] = ""
-
-        # Select file via GUI
-        print("\nOpening File Dialog...")
-        start_tk()
-        filePath = filedialog.asksaveasfilename(confirmoverwrite = True, \
-                                                initialdir = appData['prevDir'], \
-                                                initialfile = watch['nickname'], \
-                                                title = "Save file", \
-                                                defaultextension = ".wat", \
+            # Select file via GUI
+            print("\nOpening File Dialog...")
+            start_tk()
+            filePath = filedialog.askopenfilename(initialdir = appData['prevDir'], \
+                                                initialfile = appData['prevFile'], \
+                                                title = "Open file", \
                                                 filetypes = (("watch files","*.wat"),("all files","*.*")))
+            
+            # Open file if possible
+            try:
+                watch = json.loads(open(filePath).read())
+                print("Opened " + watch['nickname'] + " data file.")
+                break
+            except:
+                print("\nFile could not be read.\n")
         
-        # Save newly made file if possible
-        try:
-            save_file(watch, filePath)
-            print("\nNew watch saved to: " + filePath)
-            break
-        except:
-            print("\nNo file saved.\n")
-    
-    # Quit application
-    elif fileOpt == 3:
-        quit_app(appDir)
+        # Create new watch file
+        elif fileOpt == 2:
+
+            # Manually set all fields except data
+            watch = {}
+            print("")
+            for key in watchKeys:
+                if key != 'data':
+                    watch[key] = input("{0}: ".format(key))
+        
+            watch['data'] = ""
+
+            # Select file via GUI
+            print("\nOpening File Dialog...")
+            start_tk()
+            filePath = filedialog.asksaveasfilename(confirmoverwrite = True, \
+                                                    initialdir = appData['prevDir'], \
+                                                    initialfile = watch['nickname'], \
+                                                    title = "Save file", \
+                                                    defaultextension = ".wat", \
+                                                    filetypes = (("watch files","*.wat"),("all files","*.*")))
+            
+            # Save newly made file if possible
+            try:
+                save_file(watch, filePath)
+                print("\nNew watch saved to: " + filePath)
+                break
+            except:
+                print("\nNo file saved.\n")
+        
+        # Quit application
+        elif fileOpt == 3:
+            quit_app(appDir)
 
 # Watch management menu
 while True:
