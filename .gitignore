@@ -3,6 +3,7 @@
 *.dat
 *.simg
 backup/
+timeWatches.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
