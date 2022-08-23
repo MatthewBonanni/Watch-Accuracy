@@ -1,6 +1,9 @@
 # Ignore watch files and application data files
 *.wat
 *.dat
+*.simg
+backup/
+timeWatches.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
